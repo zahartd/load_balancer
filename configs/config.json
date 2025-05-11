@@ -1,5 +1,6 @@
 {
   "server": {
+    "host": "localhost",
     "port": 8080,
     "algorithm": "round_robin",
     "health_check_interval_sec": 10
