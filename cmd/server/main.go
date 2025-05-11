@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/zahartd/load_balancer/internal/balancer"
 	"github.com/zahartd/load_balancer/internal/config"
 	httpGateway "github.com/zahartd/load_balancer/internal/gateways/http"
 )
@@ -24,7 +25,10 @@ func main() {
 		log.Fatalf("Failed to load configs: %s\n", err.Error())
 	}
 
+	lb := balancer.New(cfg.Backends, cfg.LoadBalancer.Algorithm)
+
 	r := httpGateway.NewServer(
+		lb,
 		httpGateway.WithHost(cfg.Server.Host),
 		httpGateway.WithPort(cfg.Server.Port),
 	)

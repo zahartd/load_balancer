@@ -3,12 +3,16 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 )
 
 type ServerConfig struct {
-	Host                string `json:"host"`
-	Port                uint16 `json:"port"`
+	Host string `json:"host"`
+	Port uint16 `json:"port"`
+}
+
+type LoadBalancerConfig struct {
 	Algorithm           string `json:"algorithm"`
 	HealthCheckInterval int    `json:"health_check_interval_sec"`
 }
@@ -22,11 +26,33 @@ type DBConfig struct {
 	DSN string `json:"dsn"`
 }
 
+type BackendConfig struct {
+	URL *url.URL
+}
+
+type rawBackendConfig struct {
+	URL string `json:"url"`
+}
+
+func (b *BackendConfig) UnmarshalJSON(data []byte) error {
+	var raw rawBackendConfig
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("failed to unmarshal backend object: %w", err)
+	}
+	parsed, err := url.Parse(raw.URL)
+	if err != nil {
+		return fmt.Errorf("invalid backend URL %q: %w", raw.URL, err)
+	}
+	b.URL = parsed
+	return nil
+}
+
 type Config struct {
-	Server    ServerConfig    `json:"server"`
-	Backends  []string        `json:"backends"`
-	RateLimit RateLimitConfig `json:"rate_limit"`
-	DB        DBConfig        `json:"db"`
+	Server       ServerConfig       `json:"server"`
+	Backends     []BackendConfig    `json:"backends"`
+	LoadBalancer LoadBalancerConfig `json:"balancer"`
+	RateLimit    RateLimitConfig    `json:"rate_limit"`
+	DB           DBConfig           `json:"db"`
 }
 
 func Load() (*Config, error) {

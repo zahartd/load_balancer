@@ -5,16 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/zahartd/load_balancer/internal/balancer"
 )
 
 type Server struct {
-	host       string
-	port       uint16
-	httpServer *http.Server
+	host         string
+	port         uint16
+	httpServer   *http.Server
+	loadBalancer *balancer.LoadBalancer
 }
 
-func NewServer(options ...func(*Server)) *Server {
-	s := &Server{}
+func NewServer(lb *balancer.LoadBalancer, options ...func(*Server)) *Server {
+	s := &Server{loadBalancer: lb}
 	for _, o := range options {
 		o(s)
 	}
@@ -35,7 +38,8 @@ func WithPort(port uint16) func(*Server) {
 
 func (s *Server) Run(_ context.Context) error {
 	s.httpServer = &http.Server{
-		Addr: fmt.Sprintf("%s:%d", s.host, s.port),
+		Addr:    fmt.Sprintf("%s:%d", s.host, s.port),
+		Handler: NewProxy(s.loadBalancer),
 	}
 	if err := s.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
