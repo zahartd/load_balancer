@@ -1,0 +1,19 @@
+{
+  "server": {
+    "port": 8080,
+    "algorithm": "round_robin",
+    "health_check_interval_sec": 10
+  },
+  "backends": [
+    "http://localhost:9001",
+    "http://localhost:9002",
+    "http://localhost:9003"
+  ],
+  "rate_limit": {
+    "default_capacity": 100,
+    "default_rate_per_sec": 10
+  },
+  "db": {
+    "dsn": "postgres://user:pass@db:5432/loadbalancer?sslmode=disable"
+  }
+}
