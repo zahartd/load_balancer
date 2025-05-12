@@ -3,14 +3,14 @@ package balancer
 import (
 	"log"
 
-	"github.com/zahartd/load_balancer/internal/algorithms"
+	balancer_algorithms "github.com/zahartd/load_balancer/internal/balancer/algorithms"
 )
 
 func CreateAlgorithm(algorithmType string) Algorithm {
 	var algorithm Algorithm
 	switch algorithmType {
 	case "roundrobin":
-		algorithm = algorithms.NewRoundRobinAlghoritm()
+		algorithm = balancer_algorithms.NewRoundRobinAlghoritm()
 	default:
 		log.Fatalf("Uknown algorithm type type: %s", algorithmType)
 	}

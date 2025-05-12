@@ -12,6 +12,7 @@ import (
 	"github.com/zahartd/load_balancer/internal/balancer"
 	"github.com/zahartd/load_balancer/internal/config"
 	httpGateway "github.com/zahartd/load_balancer/internal/gateways/http"
+	"github.com/zahartd/load_balancer/internal/ratelimit"
 )
 
 const gracefulShutdownTime = 7 * time.Second // TODD: move it to env
@@ -26,9 +27,11 @@ func main() {
 	}
 
 	lb := balancer.New(cfg.Backends, cfg.LoadBalancer.Algorithm)
+	rl := ratelimit.New(cfg.RateLimit.Algorithm, cfg.RateLimit)
 
 	r := httpGateway.NewServer(
 		lb,
+		rl,
 		httpGateway.WithHost(cfg.Server.Host),
 		httpGateway.WithPort(cfg.Server.Port),
 	)

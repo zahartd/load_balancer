@@ -1,4 +1,4 @@
-package algorithms
+package balancer_algorithms
 
 import (
 	"errors"

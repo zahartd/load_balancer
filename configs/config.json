@@ -19,8 +19,9 @@
     }
   ],
   "rate_limit": {
+    "algorithm": "token_bucket",
     "default_capacity": 100,
-    "default_rate_per_sec": 10
+    "refill_pepiod_ms": 50
   },
   "db": {
     "dsn": "postgres://user:pass@db:5432/loadbalancer?sslmode=disable"

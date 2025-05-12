@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/zahartd/load_balancer/internal/balancer"
+	"github.com/zahartd/load_balancer/internal/ratelimit"
 )
 
 type Server struct {
@@ -14,10 +15,14 @@ type Server struct {
 	port         uint16
 	httpServer   *http.Server
 	loadBalancer *balancer.LoadBalancer
+	rateLimiter  *ratelimit.RateLimiter
 }
 
-func NewServer(lb *balancer.LoadBalancer, options ...func(*Server)) *Server {
-	s := &Server{loadBalancer: lb}
+func NewServer(lb *balancer.LoadBalancer, rl *ratelimit.RateLimiter, options ...func(*Server)) *Server {
+	s := &Server{
+		loadBalancer: lb,
+		rateLimiter:  rl,
+	}
 	for _, o := range options {
 		o(s)
 	}
@@ -36,10 +41,15 @@ func WithPort(port uint16) func(*Server) {
 	}
 }
 
-func (s *Server) Run(_ context.Context) error {
+func (s *Server) Run(ctx context.Context) error {
+	proxyHandler := NewProxy(s.loadBalancer)
+
+	// Added middlewares
+	rateLimitedHandler := RateLimitMiddleware(ctx, s.rateLimiter)(proxyHandler)
+
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.host, s.port),
-		Handler: NewProxy(s.loadBalancer),
+		Handler: rateLimitedHandler,
 	}
 	if err := s.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err

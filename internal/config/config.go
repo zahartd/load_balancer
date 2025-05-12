@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"time"
 )
 
 type ServerConfig struct {
@@ -17,9 +18,25 @@ type LoadBalancerConfig struct {
 	HealthCheckInterval int    `json:"health_check_interval_sec"`
 }
 
+type DurationMs time.Duration
+
+func (d *DurationMs) UnmarshalJSON(b []byte) error {
+	var ms int64
+	if err := json.Unmarshal(b, &ms); err != nil {
+		return fmt.Errorf("DurationMs: expected number of milliseconds, got %s: %w", string(b), err)
+	}
+	*d = DurationMs(time.Duration(ms) * time.Millisecond)
+	return nil
+}
+
+func (d DurationMs) AsDuration() time.Duration {
+	return time.Duration(d)
+}
+
 type RateLimitConfig struct {
-	DefaultCapacity   int `json:"default_capacity"`
-	DefaultRatePerSec int `json:"default_rate_per_sec"`
+	Algorithm           string     `json:"algorithm"`
+	DefaultCapacity     int        `json:"default_capacity"`
+	DefaultRefillPeriod DurationMs `json:"refill_pepiod_ms"`
 }
 
 type DBConfig struct {

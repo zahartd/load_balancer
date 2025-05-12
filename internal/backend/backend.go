@@ -8,6 +8,6 @@ import (
 type Backend struct {
 	URL         *url.URL
 	Alive       bool
-	Mutex       sync.RWMutex
+	Mutex       sync.RWMutex // TODO: make private
 	ActiveConns int
 }
