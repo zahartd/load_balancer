@@ -10,7 +10,7 @@ type RateLimiter struct {
 	limiters    map[string]Algorithm
 	limiterType string
 	options     any
-	mu          sync.Mutex
+	mu          sync.RWMutex
 }
 
 func New(limiterType string, limiterOptions any) *RateLimiter {
@@ -22,15 +22,22 @@ func New(limiterType string, limiterOptions any) *RateLimiter {
 }
 
 func (rl *RateLimiter) getLimiter(ctx context.Context, key string) Algorithm {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
+	// Check if it already created limiter for this client
+	rl.mu.RLock()
 	if l, exists := rl.limiters[key]; exists {
+		rl.mu.RUnlock()
 		log.Printf("Use rate limiter (type=%s) for %s", rl.limiterType, key)
 		return l
 	}
+	rl.mu.RUnlock()
+
+	// Create new limmiter
 	l := CreateAlgorithm(ctx, rl.limiterType, rl.options)
-	log.Printf("Created rate limiter (type=%s) for %s", rl.limiterType, key)
+	rl.mu.Lock()
 	rl.limiters[key] = l
+	rl.mu.Unlock()
+
+	log.Printf("Created rate limiter (type=%s) for %s", rl.limiterType, key)
 	return l
 }
 

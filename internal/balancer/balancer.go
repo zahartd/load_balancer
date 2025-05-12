@@ -5,5 +5,5 @@ import (
 )
 
 type Algorithm interface {
-	Next(backends []*models.Backend) (*models.Backend, error)
+	Next(backends []*models.Backend) *models.Backend
 }

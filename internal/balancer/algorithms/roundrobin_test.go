@@ -1,14 +1,25 @@
 package balancer_algorithms
 
 import (
-	"errors"
+	"flag"
+	"io"
+	"log"
 	"net/url"
+	"os"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/zahartd/load_balancer/internal/models"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if !testing.Verbose() {
+		log.SetOutput(io.Discard)
+	}
+	os.Exit(m.Run())
+}
 
 func mustURL(raw string) *url.URL {
 	u, err := url.Parse(raw)
@@ -18,7 +29,22 @@ func mustURL(raw string) *url.URL {
 	return u
 }
 
+func BenchmarkRoundRobin(b *testing.B) {
+	log.SetOutput(io.Discard)
+
+	rr := NewRoundRobinAlghoritm()
+	b1 := &models.Backend{URL: mustURL("http://a")}
+	b2 := &models.Backend{URL: mustURL("http://b")}
+	b3 := &models.Backend{URL: mustURL("http://c")}
+	backends := []*models.Backend{b1, b2, b3}
+
+	for b.Loop() {
+		rr.Next(backends)
+	}
+}
+
 func TestRoundRobin_Next(t *testing.T) {
+	t.Parallel()
 	rr := NewRoundRobinAlghoritm()
 	b1 := &models.Backend{URL: mustURL("http://a")}
 	b2 := &models.Backend{URL: mustURL("http://b")}
@@ -28,22 +54,13 @@ func TestRoundRobin_Next(t *testing.T) {
 	expected := []*models.Backend{b1, b2, b3, b1, b2, b3}
 
 	for i, want := range expected {
-		got, err := rr.Next(backends)
-		require.NoError(t, err, "iteration %d: unexpected error", i)
+		got := rr.Next(backends)
 		require.Equal(t, want, got, "iteration %d: expected %v, got %v", i, want, got)
 	}
 }
 
-func TestRoundRobin_Empty(t *testing.T) {
-	rr := NewRoundRobinAlghoritm()
-
-	_, err := rr.Next(nil)
-
-	require.Error(t, err)
-	require.True(t, errors.Is(err, ErrNoAvailableBackends), "expected ErrNoAvailableBackends, got %v", err)
-}
-
 func TestRoundRobin_Concurrent(t *testing.T) {
+	t.Parallel()
 	rr := NewRoundRobinAlghoritm()
 
 	b1 := &models.Backend{URL: mustURL("http://1")}
@@ -58,8 +75,7 @@ func TestRoundRobin_Concurrent(t *testing.T) {
 	for range n {
 		go func() {
 			defer wg.Done()
-			b, err := rr.Next(backends)
-			require.NoError(t, err)
+			b := rr.Next(backends)
 			results <- b
 		}()
 	}

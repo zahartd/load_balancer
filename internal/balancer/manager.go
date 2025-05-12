@@ -2,6 +2,7 @@ package balancer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,11 +16,18 @@ import (
 )
 
 type LoadBalancer struct {
+	// Note: Must provide threadsafe access to itself
 	balancer Algorithm
+
+	// Note: it's field in current impl should be constant for thread safe
+	// Currently, the backend list is statistical and sets at the start of the application through the config
+	// TODO: Make it dynamicly and added synchronization
 	backends []*models.Backend
 }
 
 func New(ctx context.Context, backendsConfigs []config.BackendConfig, config config.LoadBalancerConfig) *LoadBalancer {
+	// Set backends list on startup (this list is constant in all time of app working)
+	// Therefore, we consider access to backends from different flows safe
 	backends := make([]*models.Backend, 0, len(backendsConfigs))
 	for _, bc := range backendsConfigs {
 		backends = append(backends, &models.Backend{
@@ -27,11 +35,13 @@ func New(ctx context.Context, backendsConfigs []config.BackendConfig, config con
 		})
 	}
 
+	// Create new balancer
 	lb := &LoadBalancer{
 		balancer: CreateAlgorithm(config.Algorithm),
 		backends: backends,
 	}
 
+	// Start in separate goroutine periodical task with healthchecking
 	healthCheckInterval := config.HealthCheckIntervalMS.AsDuration()
 	go lb.healthCheckingRoutine(ctx, healthCheckInterval)
 
@@ -43,6 +53,8 @@ func (lb *LoadBalancer) AliveBackends() int {
 }
 
 func (lb *LoadBalancer) getAlive() []*models.Backend {
+	// Fixed current states of backends
+	// Non-blocking for other goroutines
 	var alive []*models.Backend
 	for _, b := range lb.backends {
 		if b.IsAlive() {
@@ -74,6 +86,7 @@ func (lb *LoadBalancer) healthCheckingRoutine(ctx context.Context, interval time
 
 func (lb *LoadBalancer) healthCheck(ctx context.Context, client *http.Client) {
 	eg, egCtx := errgroup.WithContext(ctx)
+	// Pass through the backends and ping each
 	for _, b := range lb.backends {
 		eg.Go(func() error {
 			healthURL := b.URL.ResolveReference(&url.URL{Path: "/ping"}).String()
@@ -99,15 +112,17 @@ func (lb *LoadBalancer) healthCheck(ctx context.Context, client *http.Client) {
 	}
 }
 
+var ErrNoAvailableBackends = errors.New("no available backends")
+
 func (lb *LoadBalancer) NextBackend() (*models.Backend, error) {
 	alives := lb.getAlive()
 
-	nextBackend, err := lb.balancer.Next(alives)
-	if err != nil {
-		log.Printf("Failed to get next backend: %s\n", err.Error())
-		return nil, err
+	if len(alives) == 0 {
+		log.Println("There is no available backend")
+		return nil, ErrNoAvailableBackends
 	}
 
+	nextBackend := lb.balancer.Next(alives)
 	nextBackend.IncConns()
 
 	return nextBackend, nil

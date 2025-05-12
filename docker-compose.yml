@@ -3,11 +3,11 @@ services:
     build: .
     depends_on:
       backend-1:
-        condition: service_started
+        condition: service_healthy
       backend-2:
-        condition: service_started
+        condition: service_healthy
       backend-3:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8081:8080"
     environment:
@@ -23,6 +23,12 @@ services:
       - "9001:80"
     networks:
       - lbnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
 
   backend-2:
     image: nginx:alpine
@@ -32,6 +38,12 @@ services:
       - "9002:80"
     networks:
       - lbnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
 
   backend-3:
     image: nginx:alpine
@@ -41,6 +53,12 @@ services:
       - "9003:80"
     networks:
       - lbnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
 
   loadtest-ab:
     image: jordi/ab

@@ -17,10 +17,12 @@ func NewTokenBucketLimiter(ctx context.Context, options config.TokenBucketLimite
 		tokens: make(chan struct{}, options.DefaultCapacity),
 	}
 
+	// Refill bucket to full capacity on start
 	for range options.DefaultCapacity {
 		tbl.tokens <- struct{}{}
 	}
 
+	// Start in separate goroutine periodical task with refill
 	refilInterval := options.DefaultRefillIntervalMS.AsDuration()
 	go tbl.refillRoutine(ctx, refilInterval)
 

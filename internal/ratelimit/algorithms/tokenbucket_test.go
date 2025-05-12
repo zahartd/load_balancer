@@ -1,6 +1,7 @@
 package ratelimit_algorithms
 
 import (
+	"context"
 	"flag"
 	"io"
 	"log"
@@ -18,6 +19,25 @@ func TestMain(m *testing.M) {
 		log.SetOutput(io.Discard)
 	}
 	os.Exit(m.Run())
+}
+
+func BenchmarkTokenBucket(b *testing.B) {
+	log.SetOutput(io.Discard)
+
+	ctx := context.Background()
+	opts := config.TokenBucketLimiterOptions{
+		DefaultCapacity:         100,
+		DefaultRefillIntervalMS: config.DurationMs(10),
+	}
+	tbl := NewTokenBucketLimiter(ctx, opts)
+
+	for range 50 {
+		tbl.Allow()
+	}
+
+	for b.Loop() {
+		tbl.Allow()
+	}
 }
 
 func TestTokenBucketLimiter_Exhaustion(t *testing.T) {
