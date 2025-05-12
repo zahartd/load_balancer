@@ -19,7 +19,7 @@ func NewSwitchServer() *SwitchServer {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 	ss.Server = httptest.NewServer(handler)
 	return ss

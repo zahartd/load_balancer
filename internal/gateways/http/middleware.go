@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/zahartd/load_balancer/internal/ratelimit"
@@ -23,7 +24,10 @@ func RateLimitMiddleware(ctx context.Context, rl *ratelimit.RateLimiter) func(ht
 			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(`{"code":429,"message":"Rate limit exceeded"}`))
+				_, err := w.Write([]byte(`{"code":429,"message":"Rate limit exceeded"}`))
+				if err != nil {
+					log.Printf("Failed to return rate limit exceed answer: %s\n", err.Error())
+				}
 				return
 			}
 			next.ServeHTTP(w, r)

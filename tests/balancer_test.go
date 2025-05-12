@@ -10,71 +10,95 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/zahartd/load_balancer/internal/balancer"
+	"github.com/zahartd/load_balancer/internal/config"
+	httpGateway "github.com/zahartd/load_balancer/internal/gateways/http"
+	"github.com/zahartd/load_balancer/internal/ratelimit"
 	"github.com/zahartd/load_balancer/tests/utils"
+
+	"net/url"
 )
 
-func TestBalancer_FailsOverWhenBackendDown(t *testing.T) {
-	healthy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("healthy"))
+func TestBalancerFailsOverWhenBackendDown(t *testing.T) {
+	healthy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("healthy"))
 	}))
 	defer healthy.Close()
 
 	ss := utils.NewSwitchServer()
-	defer fs.Close()
+	defer ss.Close()
 
-	backends := []string{healthy.URL, ss.URL()}
-	lb := balancer.New(backends, "round_robin")
+	bURLs := []string{healthy.URL, ss.URL()}
+	var backends []config.BackendConfig
+	for _, u := range bURLs {
+		parsed, err := url.Parse(u)
+		require.NoError(t, err)
+		backends = append(backends, config.BackendConfig{URL: parsed})
+	}
 
-	// 3. Запускаем health-check с интервалом 1 сек
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go health.Watch(lb, time.Second)
+	lb := balancer.New(
+		context.Background(),
+		backends,
+		config.LoadBalancerConfig{
+			Algorithm:           "round_robin",
+			HealthCheckInterval: 50, // ms
+		},
+	)
 
-	// 4. HTTP-сервер балансировщика на случайном порту
-	proxy := server.NewProxy(lb)
-	srv := httptest.NewServer(proxy)
+	rateLimitConfig := config.RateLimitConfig{
+		Algorithm:           "token_buckets",
+		DefaultCapacity:     10,
+		DefaultRefillPeriod: 50,
+	}
+
+	rl := ratelimit.New(rateLimitConfig.Algorithm, rateLimitConfig)
+
+	srvImpl := httpGateway.NewServer(
+		context.Background(),
+		lb,
+		rl,
+		httpGateway.WithHost(""),
+		httpGateway.WithPort(0),
+	)
+
+	h := srvImpl.Handler()
+	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	// 5. Проверяем, что оба бэка дают 200
-	resp1, err := http.Get(srv.URL + "/")
+	resp, err := http.Get(srv.URL + "/")
 	require.NoError(t, err)
-	b1, _ := io.ReadAll(resp1.Body)
-	resp1.Body.Close()
-	require.Equal(t, "healthy", string(b1))
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.Equal(t, "healthy", string(b))
 
-	resp2, err := http.Get(srv.URL + "/")
+	resp, err = http.Get(srv.URL + "/")
 	require.NoError(t, err)
-	b2, _ := io.ReadAll(resp2.Body)
-	resp2.Body.Close()
-	require.Equal(t, "ok", string(b2))
+	b, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.Equal(t, "ok", string(b))
 
-	// 6. «Отключаем» второй сервер на 10 секунд
 	ss.SetDown(true)
-	time.Sleep(100 * time.Millisecond) // дождёмся health-check
+	time.Sleep(100 * time.Millisecond)
 
-	// 7. Все запросы теперь должны идти на «healthy»
 	for i := 0; i < 5; i++ {
 		resp, err := http.Get(srv.URL + "/")
 		require.NoError(t, err)
-		body, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		require.Equal(t, "healthy", string(body))
+		require.Equal(t, "healthy", string(b))
 	}
 
-	// 8. Включаем второй назад
 	ss.SetDown(false)
-	time.Sleep(100 * time.Millisecond) // ждать health-check
+	time.Sleep(100 * time.Millisecond)
 
-	// 9. Теперь round-robin снова чередует
-	got := map[string]bool{}
+	results := map[string]bool{}
 	for i := 0; i < 4; i++ {
 		resp, err := http.Get(srv.URL + "/")
 		require.NoError(t, err)
-		body, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		got[string(body)] = true
+		results[string(b)] = true
 	}
-	require.Contains(t, got, "healthy")
-	require.Contains(t, got, "ok")
+	require.Contains(t, results, "healthy")
+	require.Contains(t, results, "ok")
 }

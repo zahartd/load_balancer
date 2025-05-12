@@ -26,10 +26,11 @@ func main() {
 		log.Fatalf("Failed to load configs: %s\n", err.Error())
 	}
 
-	lb := balancer.New(cfg.Backends, cfg.LoadBalancer.Algorithm)
+	lb := balancer.New(appCtx, cfg.Backends, cfg.LoadBalancer)
 	rl := ratelimit.New(cfg.RateLimit.Algorithm, cfg.RateLimit)
 
 	r := httpGateway.NewServer(
+		appCtx,
 		lb,
 		rl,
 		httpGateway.WithHost(cfg.Server.Host),

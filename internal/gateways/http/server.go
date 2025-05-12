@@ -13,12 +13,13 @@ import (
 type Server struct {
 	host         string
 	port         uint16
+	handler      http.Handler
 	httpServer   *http.Server
 	loadBalancer *balancer.LoadBalancer
 	rateLimiter  *ratelimit.RateLimiter
 }
 
-func NewServer(lb *balancer.LoadBalancer, rl *ratelimit.RateLimiter, options ...func(*Server)) *Server {
+func NewServer(ctx context.Context, lb *balancer.LoadBalancer, rl *ratelimit.RateLimiter, options ...func(*Server)) *Server {
 	s := &Server{
 		loadBalancer: lb,
 		rateLimiter:  rl,
@@ -26,6 +27,9 @@ func NewServer(lb *balancer.LoadBalancer, rl *ratelimit.RateLimiter, options ...
 	for _, o := range options {
 		o(s)
 	}
+
+	proxyHandler := NewProxy(s.loadBalancer)
+	s.handler = RateLimitMiddleware(ctx, s.rateLimiter)(proxyHandler)
 	return s
 }
 
@@ -41,15 +45,14 @@ func WithPort(port uint16) func(*Server) {
 	}
 }
 
-func (s *Server) Run(ctx context.Context) error {
-	proxyHandler := NewProxy(s.loadBalancer)
+func (s *Server) Handler() http.Handler {
+	return s.handler
+}
 
-	// Added middlewares
-	rateLimitedHandler := RateLimitMiddleware(ctx, s.rateLimiter)(proxyHandler)
-
+func (s *Server) Run(_ context.Context) error {
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.host, s.port),
-		Handler: rateLimitedHandler,
+		Handler: s.handler,
 	}
 	if err := s.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err

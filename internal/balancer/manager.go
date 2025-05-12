@@ -1,6 +1,11 @@
 package balancer
 
 import (
+	"context"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/zahartd/load_balancer/internal/backend"
 	"github.com/zahartd/load_balancer/internal/config"
 )
@@ -10,17 +15,23 @@ type LoadBalancer struct {
 	backends []*backend.Backend
 }
 
-func New(backendsConfigs []config.BackendConfig, algorithm string) *LoadBalancer {
+func New(ctx context.Context, backendsConfigs []config.BackendConfig, config config.LoadBalancerConfig) *LoadBalancer {
 	backends := make([]*backend.Backend, 0, len(backendsConfigs))
 	for _, bc := range backendsConfigs {
 		backends = append(backends, &backend.Backend{
 			URL: bc.URL,
 		})
 	}
-	return &LoadBalancer{
-		balancer: CreateAlgorithm(algorithm),
+
+	lb := LoadBalancer{
+		balancer: CreateAlgorithm(config.Algorithm),
 		backends: backends,
 	}
+
+	healthCheckInterval := time.Duration(int64(config.HealthCheckInterval))
+	go lb.healthCheckingLoop(ctx, healthCheckInterval)
+
+	return &lb
 }
 
 func (lb *LoadBalancer) getAlive() []*backend.Backend {
@@ -33,6 +44,32 @@ func (lb *LoadBalancer) getAlive() []*backend.Backend {
 		b.Mutex.RUnlock()
 	}
 	return alive
+}
+
+func (lb *LoadBalancer) healthCheckingLoop(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	client := http.Client{Timeout: interval}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			for _, b := range lb.backends {
+				go func(b *backend.Backend) {
+					healthURL := b.URL.ResolveReference(&url.URL{Path: "/ping"}).String()
+					resp, err := client.Get(healthURL)
+					alive := err == nil && resp.StatusCode == http.StatusOK
+					if resp != nil {
+						resp.Body.Close()
+					}
+					lb.MarkBackendStatus(b.URL.String(), alive)
+				}(b)
+			}
+		}
+	}
 }
 
 func (lb *LoadBalancer) NextBackend() (*backend.Backend, error) {
