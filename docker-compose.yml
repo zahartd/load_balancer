@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   load-balancer:
     build: .
@@ -11,7 +9,7 @@ services:
       backend-3:
         condition: service_started
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       CONFIG_PATH: /app/config.json
     networks:

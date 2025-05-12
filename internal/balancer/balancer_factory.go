@@ -9,7 +9,7 @@ import (
 func CreateAlgorithm(algorithmType string) Algorithm {
 	var algorithm Algorithm
 	switch algorithmType {
-	case "roundrobin":
+	case "round_robin":
 		algorithm = balancer_algorithms.NewRoundRobinAlghoritm()
 	default:
 		log.Fatalf("Uknown algorithm type type: %s", algorithmType)
