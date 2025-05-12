@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/zahartd/load_balancer/internal/balancer"
@@ -18,7 +19,7 @@ import (
 const gracefulShutdownTime = 7 * time.Second // TODD: move it to env
 
 func main() {
-	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	cfg, err := config.Load()
