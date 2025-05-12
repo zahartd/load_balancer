@@ -25,8 +25,6 @@ func NewProxy(lb *balancer.LoadBalancer) http.Handler {
 
 		proxy.ServeHTTP(w, r)
 
-		backend.Mutex.Lock()
-		backend.ActiveConns--
-		backend.Mutex.Unlock()
+		backend.DecConns()
 	})
 }

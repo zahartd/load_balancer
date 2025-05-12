@@ -42,10 +42,10 @@ services:
     networks:
       - lbnet
 
-  loadtest:
+  loadtest-ab:
     image: jordi/ab
     profiles:
-      - loadtest
+      - loadtest-ab
     depends_on:
       load-balancer:
         condition: service_started
@@ -58,6 +58,30 @@ services:
       - "-c" 
       - "1000" 
       - "http://load-balancer:8080/"
+
+  loadtest-vegeta:
+    image: peterevans/vegeta
+    profiles:
+      - loadtest-vegeta
+    depends_on:
+      load-balancer:
+        condition: service_started
+    networks:
+      - lbnet
+    volumes:
+      - ./vegeta/targets.txt:/targets.txt:ro
+      - ./vegeta/reports:/reports
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        vegeta attack \
+          -targets=/targets.txt \
+          -rate=1000 \
+          -duration=20s \
+        | tee /reports/results.bin \
+        | vegeta report --type=text \
+        && vegeta plot /reports/results.bin > /reports/plot.html
+
 networks:
   lbnet:
     driver: bridge

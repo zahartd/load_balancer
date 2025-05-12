@@ -13,11 +13,6 @@ type ServerConfig struct {
 	Port uint16 `json:"port"`
 }
 
-type LoadBalancerConfig struct {
-	Algorithm           string `json:"algorithm"`
-	HealthCheckInterval int    `json:"health_check_interval_sec"`
-}
-
 type DurationMs time.Duration
 
 func (d *DurationMs) UnmarshalJSON(b []byte) error {
@@ -31,6 +26,11 @@ func (d *DurationMs) UnmarshalJSON(b []byte) error {
 
 func (d DurationMs) AsDuration() time.Duration {
 	return time.Duration(d)
+}
+
+type LoadBalancerConfig struct {
+	Algorithm             string     `json:"algorithm"`
+	HealthCheckIntervalMS DurationMs `json:"health_check_interval_ms"`
 }
 
 type TokenBucketLimiterOptions struct {

@@ -1,4 +1,4 @@
-.PHONY: start stop logs build loadtest
+.PHONY: start stop logs build loadtest_ab loadtest_vegeta
 
 start:
 	docker compose up --build
@@ -6,8 +6,12 @@ start:
 stop:
 	docker compose down --rmi all --volumes --remove-orphans
 
-loadtest:
-	docker compose --profile loadtest run --rm loadtest
+loadtest_ab:
+	docker compose --profile loadtest-ab run --rm loadtest-ab
+
+loadtest_vegeta:
+	docker compose --profile loadtest-vegeta run --rm loadtest-vegeta
+	@echo "Ready! Report in the Vegeta/Reports folder: see plot.html"
 
 logs:
 	docker compose logs -f

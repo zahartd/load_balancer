@@ -40,20 +40,20 @@ func TestBalancerFailsOverWhenBackendDown(t *testing.T) {
 		context.Background(),
 		backends,
 		config.LoadBalancerConfig{
-			Algorithm:           "round_robin",
-			HealthCheckInterval: 50, // ms
+			Algorithm:             "round_robin",
+			HealthCheckIntervalMS: 100,
 		},
 	)
 
 	rateLimitConfig := config.RateLimitConfig{
-		Algorithm: "token_buckets",
+		Algorithm: "token_bucket",
 		Options: config.TokenBucketLimiterOptions{
 			DefaultCapacity:     10,
 			DefaultRefillPeriod: 50,
 		},
 	}
 
-	rl := ratelimit.New(rateLimitConfig.Algorithm, rateLimitConfig)
+	rl := ratelimit.New(rateLimitConfig.Algorithm, rateLimitConfig.Options)
 
 	srvImpl := httpGateway.NewServer(
 		context.Background(),
@@ -82,7 +82,7 @@ func TestBalancerFailsOverWhenBackendDown(t *testing.T) {
 	ss.SetDown(true)
 	time.Sleep(100 * time.Millisecond)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		resp, err := http.Get(srv.URL + "/")
 		require.NoError(t, err)
 		b, _ := io.ReadAll(resp.Body)
@@ -94,7 +94,7 @@ func TestBalancerFailsOverWhenBackendDown(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	results := map[string]bool{}
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		resp, err := http.Get(srv.URL + "/")
 		require.NoError(t, err)
 		b, _ := io.ReadAll(resp.Body)

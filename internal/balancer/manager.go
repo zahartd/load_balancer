@@ -2,10 +2,13 @@ package balancer
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/zahartd/load_balancer/internal/backend"
 	"github.com/zahartd/load_balancer/internal/config"
@@ -29,8 +32,8 @@ func New(ctx context.Context, backendsConfigs []config.BackendConfig, config con
 		backends: backends,
 	}
 
-	healthCheckInterval := time.Duration(config.HealthCheckInterval) * time.Second
-	go lb.healthCheckingLoop(ctx, healthCheckInterval)
+	healthCheckInterval := config.HealthCheckIntervalMS.AsDuration()
+	go lb.healthCheckingRoutine(ctx, healthCheckInterval)
 
 	return &lb
 }
@@ -38,42 +41,57 @@ func New(ctx context.Context, backendsConfigs []config.BackendConfig, config con
 func (lb *LoadBalancer) getAlive() []*backend.Backend {
 	var alive []*backend.Backend
 	for _, b := range lb.backends {
-		b.Mutex.RLock()
-		if b.Alive {
+		if b.IsAlive() {
 			alive = append(alive, b)
 		}
-		b.Mutex.RUnlock()
 	}
 	return alive
 }
 
-func (lb *LoadBalancer) healthCheckingLoop(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
+func (lb *LoadBalancer) healthCheckingRoutine(ctx context.Context, interval time.Duration) {
 	httpTimeout := 2 * time.Second // TODO: move to config
 	client := http.Client{Timeout: httpTimeout}
 
+	// First healthcheck
+	lb.healthCheck(ctx, &client)
+
+	// Health checking loop
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			for _, b := range lb.backends {
-				go func(be *backend.Backend) {
-					healthURL := be.URL.ResolveReference(&url.URL{Path: "/ping"}).String()
-					resp, err := client.Get(healthURL)
-					if err != nil {
-						log.Printf("Backend %s health chek failed: %s", be.URL.String(), err.Error())
-					}
-					alive := err == nil && resp.StatusCode == http.StatusOK
-					if resp != nil {
-						resp.Body.Close()
-					}
-					lb.MarkBackendStatus(be.URL.String(), alive)
-				}(b)
-			}
+			lb.healthCheck(ctx, &client)
 		}
+	}
+}
+
+func (lb *LoadBalancer) healthCheck(ctx context.Context, client *http.Client) {
+	eg, egCtx := errgroup.WithContext(ctx)
+	for _, b := range lb.backends {
+		eg.Go(func() error {
+			healthURL := b.URL.ResolveReference(&url.URL{Path: "/ping"}).String()
+			req, err := http.NewRequestWithContext(egCtx, http.MethodGet, healthURL, nil)
+			if err != nil {
+				return fmt.Errorf("bad request for %s with %v", healthURL, err)
+			}
+
+			resp, err := client.Do(req)
+			alive := err == nil && resp.StatusCode == http.StatusOK
+			if resp != nil {
+				resp.Body.Close()
+			}
+
+			b.SetAlive(alive)
+
+			log.Printf("backend health update: url=%s alive=%t", b.URL, alive)
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil && err != context.Canceled {
+		log.Printf("health checks terminated early: %v", err)
 	}
 }
 
@@ -86,9 +104,7 @@ func (lb *LoadBalancer) NextBackend() (*backend.Backend, error) {
 		return nil, err
 	}
 
-	nextBackend.Mutex.Lock()
-	nextBackend.ActiveConns++
-	nextBackend.Mutex.Unlock()
+	nextBackend.IncConns()
 
 	return nextBackend, nil
 }
@@ -96,9 +112,7 @@ func (lb *LoadBalancer) NextBackend() (*backend.Backend, error) {
 func (lb *LoadBalancer) MarkBackendStatus(url string, alive bool) {
 	for _, b := range lb.backends {
 		if b.URL.String() == url {
-			b.Mutex.Lock()
-			b.Alive = alive
-			b.Mutex.Unlock()
+			b.SetAlive(alive)
 			log.Printf(
 				"backend health update: url=%s alive=%t",
 				url, alive,
