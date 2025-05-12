@@ -1,10 +1,27 @@
-GET http://load-balancer:8080/           X-API-Key: clientA
-GET http://load-balancer:8080/           X-API-Key: clientB
-GET http://load-balancer:8080/           X-API-Key: clientC
-GET http://load-balancer:8080/           X-API-Key: clientD
-GET http://load-balancer:8080/           X-API-Key: clientE
-GET http://load-balancer:8080/           X-API-Key: clientF
-GET http://load-balancer:8080/           X-API-Key: clientG
-GET http://load-balancer:8080/           X-API-Key: clientH
-GET http://load-balancer:8080/           X-API-Key: clientI
-GET http://load-balancer:8080/           X-API-Key: clientJ
+GET http://load-balancer:8080/
+X-API-Key: client1
+
+GET http://load-balancer:8080/
+X-API-Key: client2
+
+GET http://load-balancer:8080/
+X-API-Key: client3
+
+GET http://load-balancer:8080/
+X-API-Key: client4
+
+GET http://load-balancer:8080/
+X-API-Key: client5
+
+GET http://load-balancer:8080/
+X-API-Key: client6
+
+GET http://load-balancer:8080/
+X-API-Key: client7
+
+GET http://load-balancer:8080/
+X-API-Key: client8
+
+GET http://load-balancer:8080/
+
+GET http://load-balancer:8080/

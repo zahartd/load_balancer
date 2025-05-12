@@ -21,8 +21,8 @@
   "rate_limit": {
     "algorithm": "token_bucket",
     "options": {
-      "default_capacity": 100,
-      "refill_interval_ms": 100
+      "default_capacity": 200,
+      "refill_interval_ms": 10
     }
   },
   "db": {

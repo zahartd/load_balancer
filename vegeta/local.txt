@@ -1,0 +1,27 @@
+GET http://localhost:8081/
+X-API-Key: client1
+
+GET http://localhost:8081/
+X-API-Key: client2
+
+GET http://localhost:8081/
+X-API-Key: client3
+
+GET http://localhost:8081/
+X-API-Key: client4
+
+GET http://localhost:8081/
+X-API-Key: client5
+
+GET http://localhost:8081/
+X-API-Key: client6
+
+GET http://localhost:8081/
+X-API-Key: client7
+
+GET http://localhost:8081/
+X-API-Key: client8
+
+GET http://localhost:8081/
+
+GET http://localhost:8081/

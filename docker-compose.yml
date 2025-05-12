@@ -79,7 +79,7 @@ services:
         vegeta attack \
           -targets=/targets.txt \
           -rate=1000 \
-          -duration=20s \
+          -duration=10s \
         | tee /reports/results.bin \
         | vegeta report --type=text \
         && vegeta plot /reports/results.bin > /reports/plot.html

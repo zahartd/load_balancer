@@ -13,7 +13,13 @@ func RateLimitMiddleware(ctx context.Context, rl *ratelimit.RateLimiter) func(ht
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clientID := r.Header.Get("X-API-Key")
 			if clientID == "" {
-				http.Error(w, "Header X-API-Key is required", http.StatusBadRequest)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				_, err := w.Write([]byte(`{"code":400,"message":"Header X-API-Key is required"}`))
+				if err != nil {
+					log.Printf("Failed to return response: %s\n", err.Error())
+				}
+				return
 			}
 
 			allowed, err := rl.AllowRequest(ctx, clientID)
