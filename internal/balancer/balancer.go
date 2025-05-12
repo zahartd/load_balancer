@@ -1,7 +1,9 @@
 package balancer
 
-import "github.com/zahartd/load_balancer/internal/backend"
+import (
+	"github.com/zahartd/load_balancer/internal/models"
+)
 
 type Algorithm interface {
-	Next(backends []*backend.Backend) (*backend.Backend, error)
+	Next(backends []*models.Backend) (*models.Backend, error)
 }

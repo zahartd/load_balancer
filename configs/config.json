@@ -24,8 +24,5 @@
       "default_capacity": 200,
       "refill_interval_ms": 10
     }
-  },
-  "db": {
-    "dsn": "postgres://user:pass@db:5432/loadbalancer?sslmode=disable"
   }
 }

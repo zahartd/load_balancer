@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/zahartd/load_balancer/internal/backend"
+	"github.com/zahartd/load_balancer/internal/models"
 )
 
 type RoundRobin struct {
@@ -17,7 +17,7 @@ func NewRoundRobinAlghoritm() *RoundRobin {
 	return &RoundRobin{}
 }
 
-func (rr *RoundRobin) Next(backends []*backend.Backend) (*backend.Backend, error) {
+func (rr *RoundRobin) Next(backends []*models.Backend) (*models.Backend, error) {
 	backendCount := len(backends)
 	if backendCount == 0 {
 		return nil, ErrNoAvailableBackends

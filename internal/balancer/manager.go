@@ -10,19 +10,19 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/zahartd/load_balancer/internal/backend"
 	"github.com/zahartd/load_balancer/internal/config"
+	"github.com/zahartd/load_balancer/internal/models"
 )
 
 type LoadBalancer struct {
 	balancer Algorithm
-	backends []*backend.Backend
+	backends []*models.Backend
 }
 
 func New(ctx context.Context, backendsConfigs []config.BackendConfig, config config.LoadBalancerConfig) *LoadBalancer {
-	backends := make([]*backend.Backend, 0, len(backendsConfigs))
+	backends := make([]*models.Backend, 0, len(backendsConfigs))
 	for _, bc := range backendsConfigs {
-		backends = append(backends, &backend.Backend{
+		backends = append(backends, &models.Backend{
 			URL: bc.URL,
 		})
 	}
@@ -42,8 +42,8 @@ func (lb *LoadBalancer) AliveBackends() int {
 	return len(lb.getAlive())
 }
 
-func (lb *LoadBalancer) getAlive() []*backend.Backend {
-	var alive []*backend.Backend
+func (lb *LoadBalancer) getAlive() []*models.Backend {
+	var alive []*models.Backend
 	for _, b := range lb.backends {
 		if b.IsAlive() {
 			alive = append(alive, b)
@@ -99,7 +99,7 @@ func (lb *LoadBalancer) healthCheck(ctx context.Context, client *http.Client) {
 	}
 }
 
-func (lb *LoadBalancer) NextBackend() (*backend.Backend, error) {
+func (lb *LoadBalancer) NextBackend() (*models.Backend, error) {
 	alives := lb.getAlive()
 
 	nextBackend, err := lb.balancer.Next(alives)

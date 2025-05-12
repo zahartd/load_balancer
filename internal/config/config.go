@@ -69,10 +69,6 @@ func (rl *RateLimitConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type DBConfig struct {
-	DSN string `json:"dsn"`
-}
-
 type BackendConfig struct {
 	URL *url.URL
 }
@@ -99,7 +95,6 @@ type Config struct {
 	Backends     []BackendConfig    `json:"backends"`
 	LoadBalancer LoadBalancerConfig `json:"balancer"`
 	RateLimit    RateLimitConfig    `json:"rate_limit"`
-	DB           DBConfig           `json:"db"`
 }
 
 func Load() (*Config, error) {

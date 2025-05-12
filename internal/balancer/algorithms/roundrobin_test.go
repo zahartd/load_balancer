@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/zahartd/load_balancer/internal/backend"
+	"github.com/zahartd/load_balancer/internal/models"
 )
 
 func mustURL(raw string) *url.URL {
@@ -20,12 +20,12 @@ func mustURL(raw string) *url.URL {
 
 func TestRoundRobin_Next(t *testing.T) {
 	rr := NewRoundRobinAlghoritm()
-	b1 := &backend.Backend{URL: mustURL("http://a")}
-	b2 := &backend.Backend{URL: mustURL("http://b")}
-	b3 := &backend.Backend{URL: mustURL("http://c")}
-	backends := []*backend.Backend{b1, b2, b3}
+	b1 := &models.Backend{URL: mustURL("http://a")}
+	b2 := &models.Backend{URL: mustURL("http://b")}
+	b3 := &models.Backend{URL: mustURL("http://c")}
+	backends := []*models.Backend{b1, b2, b3}
 
-	expected := []*backend.Backend{b1, b2, b3, b1, b2, b3}
+	expected := []*models.Backend{b1, b2, b3, b1, b2, b3}
 
 	for i, want := range expected {
 		got, err := rr.Next(backends)
@@ -46,13 +46,13 @@ func TestRoundRobin_Empty(t *testing.T) {
 func TestRoundRobin_Concurrent(t *testing.T) {
 	rr := NewRoundRobinAlghoritm()
 
-	b1 := &backend.Backend{URL: mustURL("http://1")}
-	b2 := &backend.Backend{URL: mustURL("http://2")}
-	backends := []*backend.Backend{b1, b2}
+	b1 := &models.Backend{URL: mustURL("http://1")}
+	b2 := &models.Backend{URL: mustURL("http://2")}
+	backends := []*models.Backend{b1, b2}
 
 	var wg sync.WaitGroup
 	n := 100
-	results := make(chan *backend.Backend, n)
+	results := make(chan *models.Backend, n)
 
 	wg.Add(n)
 	for range n {
