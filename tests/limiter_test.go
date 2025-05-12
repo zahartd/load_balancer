@@ -16,44 +16,41 @@ import (
 	"github.com/zahartd/load_balancer/internal/balancer"
 	"github.com/zahartd/load_balancer/internal/config"
 	httpGateway "github.com/zahartd/load_balancer/internal/gateways/http"
-	"github.com/zahartd/load_balancer/tests/utils"
+	"github.com/zahartd/load_balancer/internal/ratelimit"
 )
 
-type BalancerTestSuite struct {
+type RateLimiterSuite struct {
 	suite.Suite
 
 	// backends
 	healthyServer *httptest.Server
-	switchServer  *utils.SwitchServer
 
 	// componets
 	lb *balancer.LoadBalancer
-	// Can use withous rate limiter
+	rl *ratelimit.RateLimiter
 
 	// main api server
 	apiServer *httptest.Server
 }
 
-func TestBalancerSuite(t *testing.T) {
+func TestRateLimiterSuite(t *testing.T) {
 	// discard non-fatal logs  if it runs without -v
 	flag.Parse()
 	if !testing.Verbose() {
 		log.SetOutput(io.Discard)
 	}
 
-	suite.Run(t, new(BalancerTestSuite))
+	suite.Run(t, new(RateLimiterSuite))
 }
 
-func (s *BalancerTestSuite) SetupSuite() {
+func (s *RateLimiterSuite) SetupSuite() {
 	s.healthyServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("always healthy"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 
-	s.switchServer = utils.NewSwitchServer()
-
 	var backends []config.BackendConfig
-	for _, u := range []string{s.healthyServer.URL, s.switchServer.URL()} {
+	for _, u := range []string{s.healthyServer.URL} {
 		parsed, err := url.Parse(u)
 		s.Require().NoError(err)
 		backends = append(backends, config.BackendConfig{
@@ -70,23 +67,27 @@ func (s *BalancerTestSuite) SetupSuite() {
 		},
 	)
 
+	s.rl = ratelimit.New("token_bucket", config.TokenBucketLimiterOptions{
+		DefaultCapacity:         3,
+		DefaultRefillIntervalMS: 200,
+	})
+
 	srvImpl := httpGateway.NewServer(
 		context.Background(),
 		s.lb,
-		nil,
+		s.rl,
 		httpGateway.WithHost(""),
 		httpGateway.WithPort(0),
 	)
 	s.apiServer = httptest.NewServer(srvImpl.Handler())
 }
 
-func (s *BalancerTestSuite) TearDownSuite() {
+func (s *RateLimiterSuite) TearDownSuite() {
 	s.healthyServer.Close()
-	s.switchServer.Close()
 	s.apiServer.Close()
 }
 
-func (s *BalancerTestSuite) waitAlive(want int) {
+func (s *RateLimiterSuite) waitAlive(want int) {
 	require.Eventually(
 		s.T(),
 		func() bool { return s.lb.AliveBackends() == want },
@@ -95,47 +96,37 @@ func (s *BalancerTestSuite) waitAlive(want int) {
 	)
 }
 
-func (s *BalancerTestSuite) doRequest() string {
-	resp, err := http.Get(s.apiServer.URL + "/")
+func (s *RateLimiterSuite) doRequest(key string) (int, string) {
+	req, _ := http.NewRequest("GET", s.apiServer.URL+"/", nil)
+	req.Header.Set("X-API-Key", key)
+
+	resp, err := http.DefaultClient.Do(req)
 	s.Require().NoError(err)
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err)
-	return string(body)
+	body, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(body)
 }
 
-func (s *BalancerTestSuite) TestRoundRobin_Common() {
-	s.waitAlive(2)
-
-	results := map[string]struct{}{}
-	for range 4 {
-		results[s.doRequest()] = struct{}{}
-	}
-
-	s.Require().Contains(results, "always healthy")
-	s.Require().Contains(results, "ok")
-	s.Require().Len(results, 2)
-}
-
-func (s *BalancerTestSuite) TestRoundRobin_DownAndRecovery() {
-	s.switchServer.SetDown(true)
+func (s *RateLimiterSuite) TestTokenBucket_LimitAndRefill() {
 	s.waitAlive(1)
 
-	results := map[string]struct{}{}
-	for range 4 {
-		results[s.doRequest()] = struct{}{}
+	const key = "test-client"
+	for i := range 3 {
+		code, body := s.doRequest(key)
+		s.Equal(http.StatusOK, code, "request %d should pass", i+1)
+		s.Equal("ok", body)
 	}
-	s.Require().Equal(map[string]struct{}{"always healthy": {}}, results)
 
-	s.switchServer.SetDown(false)
-	s.waitAlive(2)
+	code, _ := s.doRequest(key)
+	s.Equal(http.StatusTooManyRequests, code, "4th request should be rate-limited")
 
-	results = map[string]struct{}{}
-	for range 4 {
-		results[s.doRequest()] = struct{}{}
-	}
-	s.Require().Contains(results, "always healthy")
-	s.Require().Contains(results, "ok")
-	s.Require().Len(results, 2)
+	time.Sleep(300 * time.Millisecond)
+
+	code, body := s.doRequest(key)
+	s.Equal(http.StatusOK, code, "after refill one token, request should pass")
+	s.Equal("ok", body)
+
+	code, _ = s.doRequest(key)
+	s.Equal(http.StatusTooManyRequests, code, "next request after using refill should be limited")
 }

@@ -27,7 +27,7 @@ func New(ctx context.Context, backendsConfigs []config.BackendConfig, config con
 		})
 	}
 
-	lb := LoadBalancer{
+	lb := &LoadBalancer{
 		balancer: CreateAlgorithm(config.Algorithm),
 		backends: backends,
 	}
@@ -35,7 +35,7 @@ func New(ctx context.Context, backendsConfigs []config.BackendConfig, config con
 	healthCheckInterval := config.HealthCheckIntervalMS.AsDuration()
 	go lb.healthCheckingRoutine(ctx, healthCheckInterval)
 
-	return &lb
+	return lb
 }
 
 func (lb *LoadBalancer) AliveBackends() int {

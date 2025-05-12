@@ -30,7 +30,14 @@ func NewServer(ctx context.Context, lb *balancer.LoadBalancer, rl *ratelimit.Rat
 	}
 
 	proxyHandler := NewProxy(s.loadBalancer)
-	s.handler = RateLimitMiddleware(ctx, s.rateLimiter)(proxyHandler)
+	if s.rateLimiter != nil {
+		log.Println("Use rate limiting")
+		s.handler = RateLimitMiddleware(ctx, s.rateLimiter)(proxyHandler)
+	} else {
+		log.Println("Setup without rate limiting")
+		s.handler = proxyHandler
+	}
+
 	return s
 }
 

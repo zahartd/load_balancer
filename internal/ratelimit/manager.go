@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"context"
+	"log"
 	"sync"
 )
 
@@ -24,9 +25,11 @@ func (rl *RateLimiter) getLimiter(ctx context.Context, key string) Algorithm {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 	if l, exists := rl.limiters[key]; exists {
+		log.Printf("Use rate limiter (type=%s) for %s", rl.limiterType, key)
 		return l
 	}
 	l := CreateAlgorithm(ctx, rl.limiterType, rl.options)
+	log.Printf("Created rate limiter (type=%s) for %s", rl.limiterType, key)
 	rl.limiters[key] = l
 	return l
 }

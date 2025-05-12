@@ -13,7 +13,7 @@ func RateLimitMiddleware(ctx context.Context, rl *ratelimit.RateLimiter) func(ht
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clientID := r.Header.Get("X-API-Key")
 			if clientID == "" {
-				clientID = r.RemoteAddr
+				http.Error(w, "Header X-API-Key is required", http.StatusBadRequest)
 			}
 
 			allowed, err := rl.AllowRequest(ctx, clientID)

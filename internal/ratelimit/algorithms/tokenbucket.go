@@ -2,6 +2,7 @@ package ratelimit_algorithms
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/zahartd/load_balancer/internal/config"
@@ -20,13 +21,13 @@ func NewTokenBucketLimiter(ctx context.Context, options config.TokenBucketLimite
 		tbl.tokens <- struct{}{}
 	}
 
-	refilInterval := options.DefaultRefillPeriod.AsDuration().Nanoseconds() / int64(options.DefaultCapacity)
+	refilInterval := options.DefaultRefillIntervalMS.AsDuration()
+	go tbl.refillRoutine(ctx, refilInterval)
 
-	go tbl.refillLoop(ctx, time.Duration(refilInterval))
 	return tbl
 }
 
-func (tbl *TokenBucketLimiter) refillLoop(ctx context.Context, interval time.Duration) {
+func (tbl *TokenBucketLimiter) refillRoutine(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -46,6 +47,7 @@ func (tbl *TokenBucketLimiter) refillLoop(ctx context.Context, interval time.Dur
 func (tbl *TokenBucketLimiter) Allow() bool {
 	select {
 	case <-tbl.tokens:
+		log.Printf("In total, tokens are left: %d", len(tbl.tokens))
 		return true
 	default:
 		return false

@@ -20,12 +20,12 @@ func (d *DurationMs) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &ms); err != nil {
 		return fmt.Errorf("DurationMs: expected number of milliseconds, got %s: %w", string(b), err)
 	}
-	*d = DurationMs(time.Duration(ms) * time.Millisecond)
+	*d = DurationMs(time.Duration(ms))
 	return nil
 }
 
 func (d DurationMs) AsDuration() time.Duration {
-	return time.Duration(d)
+	return time.Duration(d) * time.Millisecond
 }
 
 type LoadBalancerConfig struct {
@@ -34,8 +34,8 @@ type LoadBalancerConfig struct {
 }
 
 type TokenBucketLimiterOptions struct {
-	DefaultCapacity     int        `json:"default_capacity"`
-	DefaultRefillPeriod DurationMs `json:"refill_period_ms"`
+	DefaultCapacity         int        `json:"default_capacity"`
+	DefaultRefillIntervalMS DurationMs `json:"refill_interval_ms"`
 }
 
 type RateLimitConfig struct {
