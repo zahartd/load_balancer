@@ -9,13 +9,13 @@
   },
   "backends": [
     {
-      "url": "http://localhost:9001"
+      "url": "http://backend-1"
     },
     {
-      "url": "http://localhost:9002"
+      "url": "http://backend-2"
     },
     {
-      "url": "http://localhost:9003"
+      "url": "http://backend-3"
     }
   ],
   "rate_limit": {
