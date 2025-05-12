@@ -53,10 +53,12 @@ services:
       - lbnet
     entrypoint: ["ab"]
     command:
+      - "-H"
+      - "X-API-Key: client1"
       - "-n" 
       - "5000" 
       - "-c" 
-      - "1000" 
+      - "1000"
       - "http://load-balancer:8080/"
 
   loadtest-vegeta:

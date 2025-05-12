@@ -22,7 +22,7 @@
     "algorithm": "token_bucket",
     "options": {
       "default_capacity": 100,
-      "refill_period_ms": 10
+      "refill_period_ms": 100
     }
   },
   "db": {

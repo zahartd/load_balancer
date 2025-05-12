@@ -22,6 +22,7 @@ func RateLimitMiddleware(ctx context.Context, rl *ratelimit.RateLimiter) func(ht
 				return
 			}
 			if !allowed {
+				log.Printf("Request from %s did not alloweded\n", clientID)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusTooManyRequests)
 				_, err := w.Write([]byte(`{"code":429,"message":"Rate limit exceeded"}`))
@@ -30,6 +31,7 @@ func RateLimitMiddleware(ctx context.Context, rl *ratelimit.RateLimiter) func(ht
 				}
 				return
 			}
+			log.Printf("Request from %s alloweded\n", clientID)
 			next.ServeHTTP(w, r)
 		})
 	}
