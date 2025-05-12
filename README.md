@@ -36,7 +36,7 @@ make build
 go test -race ./...
 
 # Нагрузочные тесты Apache Bench (см. доку AB)
-ab -H "X-API-Key: client1" -n 5000 -c 1000 "http://load-balancer:8081/"
+ab -H "X-API-Key: client1" -n 5000 -c 1000 "http://localhost:8081/"
 
 # Нагрузочные тесты Vegeta (см. доку https://github.com/tsenart/vegeta).
 vegeta attack -targets="./vegeta/local.txt" -rate=1000 -duration=10s \
