@@ -38,6 +38,10 @@ func New(ctx context.Context, backendsConfigs []config.BackendConfig, config con
 	return &lb
 }
 
+func (lb *LoadBalancer) AliveBackends() int {
+	return len(lb.getAlive())
+}
+
 func (lb *LoadBalancer) getAlive() []*backend.Backend {
 	var alive []*backend.Backend
 	for _, b := range lb.backends {
