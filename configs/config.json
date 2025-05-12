@@ -1,11 +1,11 @@
 {
   "server": {
-    "host": "localhost",
+    "host": "0.0.0.0",
     "port": 8080
   },
   "balancer": {
     "algorithm": "round_robin",
-    "health_check_interval_sec": 10
+    "health_check_interval_sec": 5
   },
   "backends": [
     {
@@ -20,8 +20,10 @@
   ],
   "rate_limit": {
     "algorithm": "token_bucket",
-    "default_capacity": 100,
-    "refill_pepiod_ms": 50
+    "options": {
+      "default_capacity": 100,
+      "refill_period_ms": 50
+    }
   },
   "db": {
     "dsn": "postgres://user:pass@db:5432/loadbalancer?sslmode=disable"

@@ -33,10 +33,40 @@ func (d DurationMs) AsDuration() time.Duration {
 	return time.Duration(d)
 }
 
-type RateLimitConfig struct {
-	Algorithm           string     `json:"algorithm"`
+type TokenBucketLimiterOptions struct {
 	DefaultCapacity     int        `json:"default_capacity"`
-	DefaultRefillPeriod DurationMs `json:"refill_pepiod_ms"`
+	DefaultRefillPeriod DurationMs `json:"refill_period_ms"`
+}
+
+type RateLimitConfig struct {
+	Algorithm string `json:"algorithm"`
+	Options   any    `json:"options"`
+}
+
+type rawRateLimitConfig struct {
+	Algorithm string          `json:"algorithm"`
+	Options   json.RawMessage `json:"options"`
+}
+
+func (rl *RateLimitConfig) UnmarshalJSON(data []byte) error {
+	var raw rawRateLimitConfig
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("failed to unmarshal rate limiter object: %w", err)
+	}
+
+	switch raw.Algorithm {
+	case "token_bucket":
+		var cfg TokenBucketLimiterOptions
+		if err := json.Unmarshal(raw.Options, &cfg); err != nil {
+			return fmt.Errorf("failed to unmarshal rate limiter object: %w", err)
+		}
+		rl.Options = cfg
+	default:
+		return fmt.Errorf("unknown algorithm %q", raw.Algorithm)
+	}
+
+	rl.Algorithm = raw.Algorithm
+	return nil
 }
 
 type DBConfig struct {

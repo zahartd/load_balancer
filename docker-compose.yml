@@ -42,6 +42,22 @@ services:
     networks:
       - lbnet
 
+  loadtest:
+    image: jordi/ab
+    profiles:
+      - loadtest
+    depends_on:
+      load-balancer:
+        condition: service_started
+    networks:
+      - lbnet
+    entrypoint: ["ab"]
+    command:
+      - "-n" 
+      - "5000" 
+      - "-c" 
+      - "1000" 
+      - "http://load-balancer:8080/"
 networks:
   lbnet:
     driver: bridge

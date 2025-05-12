@@ -19,6 +19,7 @@ import (
 const gracefulShutdownTime = 7 * time.Second // TODD: move it to env
 
 func main() {
+	log.Println("Try to start load balancer...")
 	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	lb := balancer.New(appCtx, cfg.Backends, cfg.LoadBalancer)
-	rl := ratelimit.New(cfg.RateLimit.Algorithm, cfg.RateLimit)
+	rl := ratelimit.New(cfg.RateLimit.Algorithm, cfg.RateLimit.Options)
 
 	r := httpGateway.NewServer(
 		appCtx,
@@ -40,7 +41,7 @@ func main() {
 
 	go func() {
 		if err := r.Run(appCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Server failed: %s\n", err)
+			log.Fatalf("Server failed: %s\n", err.Error())
 		}
 	}()
 

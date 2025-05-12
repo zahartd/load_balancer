@@ -3,27 +3,24 @@ package ratelimit_algorithms
 import (
 	"context"
 	"time"
+
+	"github.com/zahartd/load_balancer/internal/config"
 )
 
 type TokenBucketLimiter struct {
 	tokens chan struct{}
 }
 
-type TokenBucketLimiterOptions struct {
-	Capacity int
-	Period   time.Duration
-}
-
-func NewTokenBucketLimiter(ctx context.Context, options TokenBucketLimiterOptions) *TokenBucketLimiter {
+func NewTokenBucketLimiter(ctx context.Context, options config.TokenBucketLimiterOptions) *TokenBucketLimiter {
 	tbl := &TokenBucketLimiter{
-		tokens: make(chan struct{}, options.Capacity),
+		tokens: make(chan struct{}, options.DefaultCapacity),
 	}
 
-	for range options.Capacity {
+	for range options.DefaultCapacity {
 		tbl.tokens <- struct{}{}
 	}
 
-	refilInterval := options.Period.Nanoseconds() / int64(options.Capacity)
+	refilInterval := options.DefaultRefillPeriod.AsDuration().Nanoseconds() / int64(options.DefaultCapacity)
 
 	go tbl.refillLoop(ctx, time.Duration(refilInterval))
 	return tbl

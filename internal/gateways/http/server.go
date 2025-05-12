@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/zahartd/load_balancer/internal/balancer"
@@ -50,10 +51,12 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) Run(_ context.Context) error {
+	addr := fmt.Sprintf("%s:%d", s.host, s.port)
 	s.httpServer = &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", s.host, s.port),
+		Addr:    addr,
 		Handler: s.handler,
 	}
+	log.Printf("Start server on %s\n", addr)
 	if err := s.httpServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

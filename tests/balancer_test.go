@@ -46,9 +46,11 @@ func TestBalancerFailsOverWhenBackendDown(t *testing.T) {
 	)
 
 	rateLimitConfig := config.RateLimitConfig{
-		Algorithm:           "token_buckets",
-		DefaultCapacity:     10,
-		DefaultRefillPeriod: 50,
+		Algorithm: "token_buckets",
+		Options: config.TokenBucketLimiterOptions{
+			DefaultCapacity:     10,
+			DefaultRefillPeriod: 50,
+		},
 	}
 
 	rl := ratelimit.New(rateLimitConfig.Algorithm, rateLimitConfig)
